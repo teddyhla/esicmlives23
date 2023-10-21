@@ -3,11 +3,13 @@
 # LIBRARIES
 
 library(shiny)
-library(ggplot2)
-library(plotly)
+#library(ggplot2)
+#library(plotly)
 library(bslib)
 library(leaflet)
-#library(geosphere)
+library(geosphere)
+#library(lubridate)
+library(dplyr)
 
 # source
 source('utils.R')
@@ -17,6 +19,27 @@ source('utils.R')
 
 ui <- page_navbar(
   fillable_mobile = FALSE,
+  tags$script(HTML("
+    function updateUserTime() {
+      var currentTime = new Date();
+      var year = currentTime.getFullYear();
+      var month = currentTime.getMonth() + 1;
+      var day = currentTime.getDate();
+      var hours = currentTime.getHours();
+      var minutes = currentTime.getMinutes();
+      var seconds = currentTime.getSeconds();
+      var timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
+      var formattedTime = year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds + ' ' + timeZone;
+      Shiny.setInputValue('user_time', formattedTime);
+    }
+
+    // Update the time every second
+    setInterval(updateUserTime, 1000);
+    
+    // Initial update
+    updateUserTime();
+  ")),
   title = 'Find out your carboncost!',
   sidebar = sidebar(sidebar_acc),
   #create 3 paels
@@ -25,17 +48,12 @@ ui <- page_navbar(
     layout_columns(title = "test",value = 'hello',
       leafletOutput('map')
       ),
+    tableOutput('t1'),
     layout_columns(
-      value_box(class = 'bg-warning',showcase= icon('a'), title = 'Your Estimated carbon cost:',
-        value = verbatimTextOutput('departure$lat')
+      value_box(title = 'Your Estimated carbon cost:',
+        value = textOutput('ans')
       ),
-      value_box(
-        title = "test2",value = 'hello2',
-        #need a submit button
-        actionButton('send','Submit')
-      )
     )
-    
     ),
   nav_panel(title = 'User Guide & Assumptions',
     page_fillable(
@@ -73,7 +91,7 @@ server <- function(input, output) {
     output$map <- renderLeaflet({
       leaflet() %>%
         addTiles() %>%
-        setView(lng = 0, lat = 51, zoom = 2)#center location
+        setView(lng = 9.1 , lat = 45.5, zoom = 6)#center location
     })
     
   # observe for click event and update 
@@ -88,10 +106,38 @@ server <- function(input, output) {
       }
     })
     
-    # calculate the distance
-    output$dist_out <- renderText({
+    b <- reactive({input$return})
+    c <- reactive({input$travel_mode})
+    d <- reactive({input$accom})
+    f <- reactive({input$event})
+  
+    df <- reactive({
       departure <- values$departure
+      data.frame(
+        t = input$user_time,
+        return = b(),
+        mode = c(),
+        accom = d(),
+        event = f(),
+        lat = departure$lat,
+        lng = departure$lng,
+        destlat = 45.481,
+        destlng = 9.155
+      )
     })
+    
+    dfproc <- reactive({
+      #here we will call mod function
+      mod(df())
+    })
+
+    output$ans <- renderText({
+      val1 <- round(dfproc()$dist,2)
+      val2 <- round(dfproc()$total,2)
+      paste0("Distance travelled(km):", val1, "\n Est. Total Carbon Cost(co2 equiv):", val2)
+    })
+    
+    output$t1 <- renderTable(df())
 }
 
 # Run the application 
