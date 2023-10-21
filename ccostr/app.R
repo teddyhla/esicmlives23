@@ -3,12 +3,9 @@
 # LIBRARIES
 
 library(shiny)
-#library(ggplot2)
-#library(plotly)
 library(bslib)
 library(leaflet)
 library(geosphere)
-#library(lubridate)
 library(dplyr)
 
 # source
@@ -134,7 +131,7 @@ server <- function(input, output) {
     output$ans <- renderText({
       val1 <- round(dfproc()$dist,2)
       val2 <- round(dfproc()$total,2)
-      paste0("Distance travelled(km):", val1, "\n Est. Total Carbon Cost(co2 equiv):", val2)
+      paste0("Distance travelled(km):", val1, "\n\n Est. Total Carbon Cost(co2 equiv):", val2)
     })
     
     output$t1 <- renderTable(df())

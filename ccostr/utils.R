@@ -63,7 +63,6 @@ mod <- function(df){
   
 }
 
-calcdist <- function()
 
 
 usgg <- 'Select on the map to input your departure destination.'
