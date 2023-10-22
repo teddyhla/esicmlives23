@@ -12,27 +12,27 @@ CONST_AIR <- 0.140625
 CONST_CAR <- 0.168
 
 ## SIDEBAR ACC object
-sidebar_acc <- accordion(
-  accordion_panel(
-    'Click your departure destination on the map', icon = icon("map"),
-    checkboxInput('return','Is your journey return?', value = TRUE),
-    selectInput('travel_mode',
-      'How did you get here:',
-      c('Train' = 'train','Car' = 'car','Flight' = 'flight')),
-    numericInput('accom',
-      'How many nights are you staying in hotel? Select 0 if not staying in hotel.',
-      min = 0,
-      max = 10,
-      step = 1,
-      value = 5),
-    selectInput('event',
-      'Select the event you are attending:',
-      c('ESICM LIVES Milan' = 'esicm23')
-      ),
-    'Scan this QR code to try it on your device.',
-    img(src = "qrcode_ccostr.png", height = 200, width = 200)
-  )
-)
+#sidebar_acc <- sidebarLayout(
+# accordion_panel(
+#   'Click on the map to select your departure destination', icon = icon("map"),
+#   checkboxInput('return','Is your journey return?', value = TRUE),
+#   selectInput('travel_mode',
+#     'How did you get here:',
+#     c('Train' = 'train','Car' = 'car','Flight' = 'flight')),
+#   numericInput('accom',
+#     'How many nights are you staying in hotel? Select 0 if not staying in hotel.',
+#     min = 0,
+#     max = 10,
+#     step = 1,
+#     value = 5),
+#   selectInput('event',
+#     'Select the event you are attending:',
+#     c('ESICM LIVES Milan' = 'esicm23')
+#     ),
+#   'Scan this QR code to try it on your device.',
+#   img(src = "qrcode_ccostr.png", height = 200, width = 200)
+# )
+#
 
 mod <- function(df){
   

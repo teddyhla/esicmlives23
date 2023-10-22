@@ -3,19 +3,29 @@
 # LIBRARIES
 
 library(shiny)
-library(bslib)
 library(leaflet)
 library(geosphere)
 library(dplyr)
+library(googledrive)
+library(googlesheets4)
+library(ggplot2)
 
 # source
 source('utils.R')
 
+#
+options(
+  # whenever there is one account token found, use the cached token
+  gargle_oauth_email = TRUE,
+  # specify auth tokens should be stored in a hidden directory ".secrets"
+  gargle_oauth_cache = ".secrets"
+)
+
 # UI Elements
 
+sheet_id <- googledrive::drive_get('ccostr')$id
 
-ui <- page_navbar(
-  fillable_mobile = FALSE,
+ui <- fluidPage(
   tags$script(HTML("
     function updateUserTime() {
       var currentTime = new Date();
@@ -37,50 +47,55 @@ ui <- page_navbar(
     // Initial update
     updateUserTime();
   ")),
-  title = 'Find out your carboncost!',
-  sidebar = sidebar(sidebar_acc),
-  #create 3 paels
-  nav_panel(title = 'Estimations',
-    # within estimation panel
-    layout_columns(title = "test",value = 'hello',
-      leafletOutput('map')
+  titlePanel('Find out your carboncost.'),
+  sidebarLayout(
+    sidebarPanel(
+      h4('1. Click on the map to select your departure destination(default set to London).'),
+      selectInput('return','2. Is your journey return?', c('Yes'=TRUE,'No'=FALSE)),
+      selectInput('travel_mode','3. How did you travel?', c('Train'='train','Car'='car', 'Flight'='flight')),
+      numericInput(
+        'accom',
+        '4. How many nights are you staying in hotel? (Select 0 if not staying in hotel.)',
+        min= 0, max = 14, step = 1, value = 5
       ),
-    tableOutput('t1'),
-    layout_columns(
-      value_box(title = 'Your Estimated carbon cost:',
-        value = textOutput('ans')
-      ),
-    )
+      selectInput('event','6. Select the event you are attending?', c('ESICM Lives @ Milan'='esicm23'))
     ),
-  nav_panel(title = 'User Guide & Assumptions',
-    page_fillable(
-      card(height = '200px',
-          card_header(h6('User Guide')),
-          card_body(usgg)
-      ),
-    card(height = '200px',
-        card_header(h6('Assumptions')),
-        card_body()
-      
-    )
-    )
-    ),
-  nav_panel(title = 'About & Feedback',
-    page_fillable(
-      card(height = '200px',
-          card_header(h6('Dev Team')),
-          card_body('Adrian Wong, Teddy Hla')
-    ),
-      card(
-        card_header(h6('Feedback')),
-        card_body('We are most grateful for your feedback.')
+    mainPanel(
+      tabsetPanel(type = 'tabs',
+        tabPanel('Estimations',
+          
+          leafletOutput('map'),
+          br(),
+            h3('Based on your input'),
+            h4('Your estimated carbon cost is: ',textOutput('ans1',inline=T),'kilograms of CO2 equivalent.'),
+            br(),
+            h4('Your estimated travel distance is:',textOutput('ans2',inline=T),'kilometres.'),
+            br(),
+          actionButton("submit", label= "Submit"),
+          #tableOutput('t1')
+          ),
+        tabPanel('Analysis',
+          
+          h3('Responses:'),
+          br(),
+          h4(textOutput('resp1',inline = T), 'has responded.'),
+          h4('Mean distance',textOutput('resp2',inline= T), ' kilometres.'),
+          h4('Mean carboncost',textOutput('resp3',inline=T),'kilograms of CO2 equivalent.'),
+          plotOutput('resp4')
+          ),
+        tabPanel('About & Feedback')
       )
     )
+  )
 )
-)
+
+
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+  
+  
+  
   #create a reactive object to store variables
   values <- reactiveValues(departure = NULL)
   
@@ -116,8 +131,8 @@ server <- function(input, output) {
         mode = c(),
         accom = d(),
         event = f(),
-        lat = departure$lat,
-        lng = departure$lng,
+        lat = ifelse(is.null(departure$lat),0,departure$lat),
+        lng = ifelse(is.null(departure$lng),0,departure$lng),
         destlat = 45.481,
         destlng = 9.155
       )
@@ -128,13 +143,54 @@ server <- function(input, output) {
       mod(df())
     })
 
-    output$ans <- renderText({
-      val1 <- round(dfproc()$dist,2)
+    output$ans1 <- renderText({
       val2 <- round(dfproc()$total,2)
-      paste0("Distance travelled(km):", val1, "\n\n Est. Total Carbon Cost(co2 equiv):", val2)
     })
     
-    output$t1 <- renderTable(df())
+    output$ans2 <- renderText({
+      val1 <- round(dfproc()$dist,2)
+    })
+    
+    output$t1 <- renderTable(dfproc())
+    
+    output$resp1 <- renderText({
+      i1 <- read_sheet(ss=sheet_id,sheet='main')
+      nrow(i1)
+    })
+    output$resp2 <- renderText({
+      i1 <- read_sheet(ss=sheet_id,sheet='main')
+      mean(i1$dist)
+    })
+    
+    output$resp3 <- renderText({
+      i1 <- read_sheet(ss=sheet_id,sheet='main')
+      mean(i1$total)
+    })
+    
+    output$resp4 <- renderPlot({
+      i1 <- read_sheet(ss=sheet_id,sheet='main')
+      p <- hist(i1$dist,main='Histogram of distances in km',xlab = 'Distances(km)')
+      p
+    })
+    
+    
+    observeEvent(input$submit,{
+      wrt <- read_sheet(ss=sheet_id,sheet ='main')
+      response_data <- dfproc()
+    
+      if (nrow(wrt)==0){
+        sheet_write(data = response_data,
+          ss = sheet_id, sheet = 'main')
+      } else {
+        sheet_append(data = response_data,
+          ss = sheet_id,
+          sheet = 'main')
+      }
+      showModal(modalDialog(
+        title = "Thank you!"
+        
+      ))
+    })
 }
 
 # Run the application 
